@@ -2,13 +2,6 @@
 import os
 from pathlib import Path
 
-from flask import Flask
-from documents import documents_bp
-
-app = Flask(__name__)
-
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
-app.register_blueprint(documents_bp)
 
 
 
@@ -27,27 +20,49 @@ app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY")
 if not app.config["SECRET_KEY"]:
     raise RuntimeError("FLASK_SECRET_KEY is missing from Backend/.env")
 
+database_url = os.environ.get("DATABASE_URL")
+
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "sqlite:///" + str(BASE_DIR / "trustvault.db")
+    database_url or ("sqlite:///" + str(BASE_DIR / "trustvault.db"))
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+is_production = os.environ.get("FLASK_ENV") == "production"
+app.config["SESSION_COOKIE_SECURE"] = is_production
+app.config["SESSION_COOKIE_SAMESITE"] = (
+    "None" if is_production else "Lax"
+)
+
+frontend_origins = [
+    origin.strip()
+    for origin in os.environ.get(
+        "FRONTEND_URL", "http://localhost:5173,http://localhost:5174"
+    ).split(",")
+    if origin.strip()
+]
 
 CORS(
     app,
-    origins=["http://localhost:5173", "http://localhost:5174"],
+    origins=frontend_origins,
     supports_credentials=True,
 )
-
 db.init_app(app)
 
 # Import models after db is initialized.
 from models import User
+from documents import documents_bp
+app.register_blueprint(documents_bp)
 
+with app.app_context():
+    db.create_all()
 
 @app.route("/")
 def home():
+
     return jsonify({
         "project": "TrustVault",
         "message": "Secure Document Sharing API is running",

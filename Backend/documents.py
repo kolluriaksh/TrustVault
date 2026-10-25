@@ -14,8 +14,9 @@ from audit import record_audit
 
 documents_bp = Blueprint("documents", __name__, url_prefix="/api/documents")
 
+
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", str(BASE_DIR / "uploads")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16 MB
