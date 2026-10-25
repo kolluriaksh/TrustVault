@@ -1,0 +1,12 @@
+
+.env
+.env.*
+!.env.example
+.venv/
+.venv313/
+**/node_modules/
+__pycache__/
+*.py[cod]
+Backend/trustvault.db
+Backend/uploads/
+Frontend/dist/
